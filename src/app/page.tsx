@@ -36,15 +36,17 @@ const TODAY_STR = format(TODAY, "yyyy-MM-dd");
 const CYCLE_DAYS = 40;
 const CYCLE_START = subDays(TODAY, CYCLE_DAYS - 1);
 
-function getCycleAttended(emp: Employee) {
-  return emp.attendance.filter((a) => {
+function getCycleStats(emp: Employee) {
+  const inCycle = emp.attendance.filter((a) => {
     const d = new Date(a.date);
     return (
-      a.status === "ATTENDED" &&
       (isAfter(d, CYCLE_START) || isSameDay(d, CYCLE_START)) &&
       (isBefore(d, TODAY) || isSameDay(d, TODAY))
     );
-  }).length;
+  });
+  const attended = inCycle.filter((a) => a.status === "ATTENDED").length;
+  const noShows = inCycle.filter((a) => a.status === "NO_SHOW").length;
+  return { attended, noShows };
 }
 
 const STATUS_CONFIG = {
@@ -160,13 +162,13 @@ export default function HomePage() {
             </div>
             <div>
               <h1 className="text-lg font-semibold tracking-tight">Employee Tracker</h1>
-              <p className="text-xs text-white/40">Team management dashboard</p>
+              <p className="text-xs text-white">Team management dashboard</p>
             </div>
           </div>
 
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
-            className="flex items-center gap-2 text-white/40 hover:text-white/70 transition-colors text-sm px-3 py-2 rounded-lg hover:bg-white/[0.05]"
+            className="flex items-center gap-2 text-white hover:text-white transition-colors text-sm px-3 py-2 rounded-lg hover:bg-white/[0.05]"
           >
             <LogOut className="w-4 h-4" />
             Sign out
@@ -194,14 +196,14 @@ export default function HomePage() {
                   { label: "Phone Number", key: "phone", type: "tel", placeholder: "+1 555 000 0000" },
                 ].map(({ label, key, type, placeholder }) => (
                   <div key={key} className="space-y-1.5">
-                    <Label className="text-white/70 text-sm">{label}</Label>
+                    <Label className="text-white text-sm">{label}</Label>
                     <Input
                       type={type}
                       placeholder={placeholder}
                       value={form[key as keyof typeof form]}
                       onChange={(e) => setForm({ ...form, [key]: e.target.value })}
                       required
-                      className="bg-white/5 border-white/10 text-white placeholder:text-white/25 focus:border-indigo-500/50"
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white focus:border-indigo-500/50"
                     />
                   </div>
                 ))}
@@ -224,8 +226,8 @@ export default function HomePage() {
         <div className="grid grid-cols-3 gap-4 mb-8">
           {[
             { label: "Total Employees", value: employees.length, color: "indigo" },
-            { label: "Total Warnings", value: employees.reduce((s, e) => s + e.warnings.length, 0), color: "amber" },
             { label: "Present Today", value: employees.filter((e) => getTodayRecord(e)?.status === "ATTENDED").length, color: "emerald" },
+            { label: "Total Warnings", value: employees.reduce((s, e) => s + e.warnings.length, 0), color: "amber" },
           ].map(({ label, value, color }) => (
             <div
               key={label}
@@ -233,7 +235,7 @@ export default function HomePage() {
                 color === "indigo" ? "border-indigo-500/20" : color === "amber" ? "border-amber-500/20" : "border-emerald-500/20"
               }`}
             >
-              <p className="text-white/40 text-xs uppercase tracking-widest mb-1">{label}</p>
+              <p className="text-white text-xs uppercase tracking-widest mb-1">{label}</p>
               <p className={`text-3xl font-bold ${color === "indigo" ? "text-indigo-400" : color === "amber" ? "text-amber-400" : "text-emerald-400"}`}>
                 {value}
               </p>
@@ -244,15 +246,15 @@ export default function HomePage() {
         {/* Today label */}
         <div className="flex items-center justify-between mb-4">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white" />
             <Input
               placeholder="Search employees..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-11 bg-white/[0.04] border-white/10 text-white placeholder:text-white/25 h-10 rounded-xl focus:border-indigo-500/50"
+              className="pl-11 bg-white/[0.04] border-white text-white placeholder:text-white h-10 rounded-xl focus:border-indigo-500/50"
             />
           </div>
-          <div className="flex items-center gap-2 text-white/30 text-sm">
+          <div className="flex items-center gap-2 text-white text-sm">
             <CalendarCheck className="w-4 h-4" />
             {format(TODAY, "EEEE, MMMM d")}
           </div>
@@ -260,13 +262,13 @@ export default function HomePage() {
 
         {/* Employee list */}
         {loading ? (
-          <div className="text-center py-20 text-white/30">Loading...</div>
+          <div className="text-center py-20 text-white">Loading...</div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-20">
             <div className="w-16 h-16 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center mx-auto mb-4">
-              <Users className="w-7 h-7 text-white/20" />
+              <Users className="w-7 h-7 text-white" />
             </div>
-            <p className="text-white/30 text-sm">
+            <p className="text-white text-sm">
               {search ? "No employees match your search" : "No employees yet. Add one to get started."}
             </p>
           </div>
@@ -274,10 +276,10 @@ export default function HomePage() {
           <div className="space-y-2">
             {/* Column headers */}
             <div className="flex items-center justify-between px-5 pb-1">
-              <p className="text-white/25 text-xs uppercase tracking-widest">Employee</p>
+              <p className="text-white text-xs uppercase tracking-widest">Employee</p>
               <div className="flex items-center gap-8 pr-8">
-                <p className="text-white/25 text-xs uppercase tracking-widest">40-Day Cycle</p>
-                <p className="text-white/25 text-xs uppercase tracking-widest">Today</p>
+                <p className="text-white text-xs uppercase tracking-widest">40-Day Cycle</p>
+                <p className="text-white text-xs uppercase tracking-widest">Today</p>
               </div>
             </div>
 
@@ -285,14 +287,16 @@ export default function HomePage() {
               const todayRecord = getTodayRecord(emp);
               const cfg = todayRecord ? STATUS_CONFIG[todayRecord.status] : null;
               const Icon = cfg?.icon;
-              const cycleAttended = getCycleAttended(emp);
-              const cyclePct = Math.round((cycleAttended / CYCLE_DAYS) * 100);
+              const { attended: cycleAttended, noShows } = getCycleStats(emp);
+              const cyclePct = Math.round(((CYCLE_DAYS - noShows) / CYCLE_DAYS) * 100);
+              const totalNoShows = emp.attendance.filter((a) => a.status === "NO_SHOW").length;
+              const totalLate = emp.attendance.filter((a) => a.status === "LATE").length;
 
               return (
                 <div
                   key={emp.id}
                   onClick={() => router.push(`/employees/${emp.id}`)}
-                  className="group flex items-center gap-5 p-5 rounded-2xl border border-white/[0.07] bg-white/[0.03] hover:bg-white/[0.06] hover:border-indigo-500/30 cursor-pointer transition-all duration-200"
+                  className="group flex items-center gap-5 p-5 rounded-2xl border border-blue-900 bg-white/[0.03] hover:bg-white/[0.06] hover:border-green-500 cursor-pointer transition-all duration-200"
                 >
                   {/* Avatar */}
                   <div className="w-11 h-11 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center flex-shrink-0 text-indigo-300 font-semibold text-sm">
@@ -303,13 +307,13 @@ export default function HomePage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-white truncate">{emp.name}</p>
                     <div className="flex items-center gap-4 mt-1">
-                      <span className="flex items-center gap-1.5 text-white/40 text-xs">
+                      <span className="flex items-center gap-1.5 text-white text-xs">
                         <Briefcase className="w-3 h-3" />{emp.role}
                       </span>
-                      <span className="flex items-center gap-1.5 text-white/40 text-xs">
+                      <span className="flex items-center gap-1.5 text-white text-xs">
                         <Globe className="w-3 h-3" />{emp.nationality}
                       </span>
-                      <span className="flex items-center gap-1.5 text-white/40 text-xs">
+                      <span className="flex items-center gap-1.5 text-white text-xs">
                         <Phone className="w-3 h-3" />{emp.phone}
                       </span>
                       {emp.warnings.length > 0 && (
@@ -318,15 +322,27 @@ export default function HomePage() {
                           {emp.warnings.length} warning{emp.warnings.length > 1 ? "s" : ""}
                         </span>
                       )}
+                      {totalNoShows > 0 && (
+                        <span className="flex items-center gap-1.5 text-red-400 text-xs">
+                          <XCircle className="w-3 h-3" />
+                          {totalNoShows} no show{totalNoShows > 1 ? "s" : ""}
+                        </span>
+                      )}
+                      {totalLate > 0 && (
+                        <span className="flex items-center gap-1.5 text-amber-300 text-xs">
+                          <Clock className="w-3 h-3" />
+                          {totalLate} late arrival{totalLate > 1 ? "s" : ""}
+                        </span>
+                      )}
                     </div>
                   </div>
 
                   {/* 40-day cycle counter */}
                   <div className="flex-shrink-0 w-28">
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-semibold text-white/70">
+                      <span className="text-xs font-semibold text-white">
                         {cycleAttended}
-                        <span className="text-white/30 font-normal"> / {CYCLE_DAYS}</span>
+                        <span className="text-white font-normal"> / {CYCLE_DAYS}</span>
                       </span>
                       <span className={`text-xs font-medium ${cyclePct >= 80 ? "text-emerald-400" : cyclePct >= 50 ? "text-amber-400" : "text-red-400"}`}>
                         {cyclePct}%
@@ -360,11 +376,11 @@ export default function HomePage() {
                         onClick={(e) => openAttendanceDialog(e, emp)}
                         className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.03] hover:border-indigo-500/30 hover:bg-indigo-500/[0.07] transition-all"
                       >
-                        <CalendarCheck className="w-3.5 h-3.5 text-white/30" />
-                        <span className="text-xs text-white/30">Mark attendance</span>
+                        <CalendarCheck className="w-3.5 h-3.5 text-white" />
+                        <span className="text-xs text-white">Mark attendance</span>
                       </button>
                     )}
-                    <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-indigo-400 transition-colors" />
+                    <ChevronRight className="w-4 h-4 text-white group-hover:text-indigo-400 transition-colors" />
                   </div>
                 </div>
               );
@@ -396,7 +412,7 @@ export default function HomePage() {
                   className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${
                     active
                       ? `${cfg.bg} ${cfg.border} ${cfg.color}`
-                      : "border-white/10 text-white/40 hover:border-white/20"
+                      : "border-white/10 text-white hover:border-white/20"
                   }`}
                 >
                   <Icon className="w-5 h-5" />
@@ -408,7 +424,7 @@ export default function HomePage() {
 
           {selectedStatus === "LATE" && (
             <div className="space-y-1.5 mt-1">
-              <Label className="text-white/50 text-xs">Arrival time</Label>
+              <Label className="text-white text-xs">Arrival time</Label>
               <Input
                 type="time"
                 value={lateTime}

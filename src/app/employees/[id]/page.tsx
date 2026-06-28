@@ -47,6 +47,12 @@ import {
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
+const CALENDAR_CELL_CONFIG = {
+  ATTENDED: { bg: "bg-emerald-500/70", border: "border-emerald-400", color: "text-emerald-100" },
+  LATE: { bg: "bg-yellow-400/60", border: "border-yellow-400", color: "text-yellow-100" },
+  NO_SHOW: { bg: "bg-red-500/70", border: "border-red-400", color: "text-red-100" },
+};
+
 const STATUS_CONFIG = {
   ATTENDED: {
     icon: CheckCircle2,
@@ -230,7 +236,7 @@ export default function EmployeePage({
           <div className="flex items-center gap-2">
             <button
               onClick={() => signOut({ callbackUrl: "/login" })}
-              className="flex items-center gap-2 text-white/40 hover:text-white/70 transition-colors text-sm px-3 py-2 rounded-lg hover:bg-white/[0.05]"
+              className="flex items-center gap-2 text-white hover:text-white/70 transition-colors text-sm px-3 py-2 rounded-lg hover:bg-white/[0.05]"
             >
               <LogOut className="w-4 h-4" />
               Sign out
@@ -356,7 +362,7 @@ export default function EmployeePage({
                         value: `Joined ${format(new Date(employee.createdAt), "MMM d, yyyy")}`,
                       },
                     ].map(({ icon: Icon, value }) => (
-                      <span key={value} className="flex items-center gap-2 text-white/50 text-sm">
+                      <span key={value} className="flex items-center gap-2 text-yellow-300/80 text-sm">
                         <Icon className="w-3.5 h-3.5" />
                         {value}
                       </span>
@@ -382,7 +388,7 @@ export default function EmployeePage({
                   <Icon className={`w-4 h-4 ${cfg.color}`} />
                 </div>
                 <div>
-                  <p className="text-white/40 text-xs">{cfg.label}</p>
+                  <p className="text-white text-xs">{cfg.label}</p>
                   <p className={`text-2xl font-bold ${cfg.color}`}>
                     {attendanceCounts[status]}
                   </p>
@@ -418,7 +424,7 @@ export default function EmployeePage({
           {/* Day headers */}
           <div className="grid grid-cols-7 mb-2">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-              <div key={d} className="text-center text-white/25 text-xs py-2">
+              <div key={d} className="text-center text-white text-xs py-2">
                 {d}
               </div>
             ))}
@@ -440,16 +446,17 @@ export default function EmployeePage({
               if (future) {
                 cellClass += "cursor-default opacity-30";
               } else if (record) {
-                const cfg = STATUS_CONFIG[record.status];
-                cellClass += `cursor-pointer ${cfg.bg} border ${cfg.border} hover:opacity-80`;
+                const calCfg = CALENDAR_CELL_CONFIG[record.status];
+                cellClass += `cursor-pointer ${calCfg.bg} border ${calCfg.border} hover:opacity-80`;
               } else {
                 cellClass +=
-                  "cursor-pointer border border-white/[0.06] hover:border-white/20 hover:bg-white/[0.04]";
+                  "cursor-pointer border border-blue-900 hover:border-green-500 hover:bg-white/[0.04]";
               }
 
               if (today) cellClass += " ring-1 ring-indigo-500/50";
 
               const cfg = record ? STATUS_CONFIG[record.status] : null;
+              const calCfg = record ? CALENDAR_CELL_CONFIG[record.status] : null;
               const Icon = cfg ? cfg.icon : null;
 
               return (
@@ -461,14 +468,14 @@ export default function EmployeePage({
                 >
                   <span
                     className={`text-xs font-medium ${
-                      record ? cfg!.color : today ? "text-indigo-400" : "text-white/50"
+                      record ? calCfg!.color : today ? "text-indigo-400" : "text-white"
                     }`}
                   >
                     {format(day, "d")}
                   </span>
                   {Icon && (
                     <Icon
-                      className={`absolute bottom-0.5 right-0.5 w-2.5 h-2.5 ${cfg!.color}`}
+                      className={`absolute bottom-0.5 right-0.5 w-2.5 h-2.5 ${calCfg!.color}`}
                     />
                   )}
                 </button>
@@ -488,7 +495,7 @@ export default function EmployeePage({
                 </span>
               );
             })}
-            <span className="text-xs text-white/25 ml-auto">Click a day to log attendance</span>
+            <span className="text-xs text-white ml-auto">Click a day to log attendance</span>
           </div>
         </div>
 
@@ -551,7 +558,7 @@ export default function EmployeePage({
                   <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-white/80 leading-relaxed">{w.description}</p>
-                    <p className="text-xs text-white/30 mt-1">
+                    <p className="text-xs text-yellow-300/80 mt-1">
                       {format(new Date(w.createdAt), "MMM d, yyyy · h:mm a")}
                     </p>
                   </div>
@@ -593,7 +600,7 @@ export default function EmployeePage({
                   className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${
                     active
                       ? `${cfg.bg} ${cfg.border} ${cfg.color}`
-                      : "border-white/10 text-white/40 hover:border-white/20"
+                      : "border-white/10 text-white hover:border-white/20"
                   }`}
                 >
                   <Icon className="w-5 h-5" />
