@@ -26,8 +26,10 @@ import {
   XCircle,
   Clock,
   CalendarCheck,
+  LogOut,
 } from "lucide-react";
 import { format, isSameDay, subDays, isAfter, isBefore } from "date-fns";
+import { signOut } from "next-auth/react";
 
 const TODAY = new Date();
 const TODAY_STR = format(TODAY, "yyyy-MM-dd");
@@ -161,6 +163,14 @@ export default function HomePage() {
               <p className="text-xs text-white/40">Team management dashboard</p>
             </div>
           </div>
+
+          <button
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            className="flex items-center gap-2 text-white/40 hover:text-white/70 transition-colors text-sm px-3 py-2 rounded-lg hover:bg-white/[0.05]"
+          >
+            <LogOut className="w-4 h-4" />
+            Sign out
+          </button>
 
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger

@@ -43,7 +43,9 @@ import {
   User,
   Save,
   X,
+  LogOut,
 } from "lucide-react";
+import { signOut } from "next-auth/react";
 
 const STATUS_CONFIG = {
   ATTENDED: {
@@ -226,6 +228,13 @@ export default function EmployeePage({
             All Employees
           </button>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="flex items-center gap-2 text-white/40 hover:text-white/70 transition-colors text-sm px-3 py-2 rounded-lg hover:bg-white/[0.05]"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign out
+            </button>
             {editing ? (
               <>
                 <Button
