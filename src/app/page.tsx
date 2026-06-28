@@ -27,10 +27,23 @@ import {
   Clock,
   CalendarCheck,
 } from "lucide-react";
-import { format, isSameDay } from "date-fns";
+import { format, isSameDay, subDays, isAfter, isBefore } from "date-fns";
 
 const TODAY = new Date();
 const TODAY_STR = format(TODAY, "yyyy-MM-dd");
+const CYCLE_DAYS = 40;
+const CYCLE_START = subDays(TODAY, CYCLE_DAYS - 1);
+
+function getCycleAttended(emp: Employee) {
+  return emp.attendance.filter((a) => {
+    const d = new Date(a.date);
+    return (
+      a.status === "ATTENDED" &&
+      (isAfter(d, CYCLE_START) || isSameDay(d, CYCLE_START)) &&
+      (isBefore(d, TODAY) || isSameDay(d, TODAY))
+    );
+  }).length;
+}
 
 const STATUS_CONFIG = {
   ATTENDED: {
@@ -250,15 +263,20 @@ export default function HomePage() {
         ) : (
           <div className="space-y-2">
             {/* Column headers */}
-            <div className="grid grid-cols-[1fr_auto] gap-4 px-5 pb-1">
+            <div className="flex items-center justify-between px-5 pb-1">
               <p className="text-white/25 text-xs uppercase tracking-widest">Employee</p>
-              <p className="text-white/25 text-xs uppercase tracking-widest text-right pr-8">Today's Attendance</p>
+              <div className="flex items-center gap-8 pr-8">
+                <p className="text-white/25 text-xs uppercase tracking-widest">40-Day Cycle</p>
+                <p className="text-white/25 text-xs uppercase tracking-widest">Today</p>
+              </div>
             </div>
 
             {filtered.map((emp) => {
               const todayRecord = getTodayRecord(emp);
               const cfg = todayRecord ? STATUS_CONFIG[todayRecord.status] : null;
               const Icon = cfg?.icon;
+              const cycleAttended = getCycleAttended(emp);
+              const cyclePct = Math.round((cycleAttended / CYCLE_DAYS) * 100);
 
               return (
                 <div
@@ -290,6 +308,25 @@ export default function HomePage() {
                           {emp.warnings.length} warning{emp.warnings.length > 1 ? "s" : ""}
                         </span>
                       )}
+                    </div>
+                  </div>
+
+                  {/* 40-day cycle counter */}
+                  <div className="flex-shrink-0 w-28">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-semibold text-white/70">
+                        {cycleAttended}
+                        <span className="text-white/30 font-normal"> / {CYCLE_DAYS}</span>
+                      </span>
+                      <span className={`text-xs font-medium ${cyclePct >= 80 ? "text-emerald-400" : cyclePct >= 50 ? "text-amber-400" : "text-red-400"}`}>
+                        {cyclePct}%
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-white/[0.07] overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${cyclePct >= 80 ? "bg-emerald-400" : cyclePct >= 50 ? "bg-amber-400" : "bg-red-400"}`}
+                        style={{ width: `${cyclePct}%` }}
+                      />
                     </div>
                   </div>
 
