@@ -318,6 +318,14 @@ export default function EmployeePage({
     ) ?? null;
   }
 
+  function getOvertimeHoursForDate(date: Date): number {
+    if (!employee) return 0;
+    const dateStr = format(date, "yyyy-MM-dd");
+    return employee.overtime
+      .filter((o) => o.date === dateStr)
+      .reduce((sum, o) => sum + o.hours, 0);
+  }
+
   function openAttendanceDialog(date: Date) {
     if (isFuture(date) && !isToday(date)) return;
     const existing = getAttendanceForDate(date);
@@ -661,9 +669,10 @@ export default function EmployeePage({
               const record = getAttendanceForDate(day);
               const future = isFuture(day) && !isToday(day);
               const today = isToday(day);
+              const otHours = getOvertimeHoursForDate(day);
 
               let cellClass =
-                "relative aspect-square rounded-xl flex items-center justify-center transition-all duration-150 ";
+                "relative aspect-square rounded-xl flex flex-col items-center justify-center transition-all duration-150 ";
 
               if (future) {
                 cellClass += "cursor-default opacity-30";
@@ -689,12 +698,17 @@ export default function EmployeePage({
                   title={record ? cfg!.label : "Click to log attendance"}
                 >
                   <span
-                    className={`text-xs font-medium ${
+                    className={`text-xs font-medium leading-none ${
                       record ? calCfg!.color : today ? "text-indigo-400" : "text-white"
                     }`}
                   >
                     {format(day, "d")}
                   </span>
+                  {otHours > 0 && (
+                    <span className="text-[8px] font-semibold text-amber-400 leading-none mt-0.5">
+                      {otHours % 1 === 0 ? otHours : otHours.toFixed(1)}h OT
+                    </span>
+                  )}
                   {Icon && (
                     <Icon
                       className={`absolute bottom-0.5 right-0.5 w-2.5 h-2.5 ${calCfg!.color}`}
