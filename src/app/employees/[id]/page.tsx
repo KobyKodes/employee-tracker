@@ -351,7 +351,7 @@ export default function EmployeePage({
   if (!employee) return null;
 
   const attendanceCounts = {
-    ATTENDED: employee.attendance.filter((a) => a.status === "ATTENDED").length,
+    ATTENDED: employee.attendance.filter((a) => a.status === "ATTENDED" || a.status === "LATE").length,
     LATE: employee.attendance.filter((a) => a.status === "LATE").length,
     NO_SHOW: employee.attendance.filter((a) => a.status === "NO_SHOW").length,
   };
