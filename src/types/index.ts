@@ -15,6 +15,13 @@ export interface Warning {
   createdAt: string;
 }
 
+export interface Note {
+  id: string;
+  employeeId: string;
+  content: string;
+  createdAt: string;
+}
+
 export interface Employee {
   id: string;
   name: string;
@@ -25,4 +32,5 @@ export interface Employee {
   createdAt: string;
   attendance: AttendanceRecord[];
   warnings: Warning[];
+  notes: Note[];
 }

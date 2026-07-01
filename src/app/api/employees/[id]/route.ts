@@ -8,7 +8,11 @@ export async function GET(
   const { id } = await params;
   const employee = await prisma.employee.findUnique({
     where: { id },
-    include: { attendance: true, warnings: { orderBy: { createdAt: "desc" } } },
+    include: {
+      attendance: true,
+      warnings: { orderBy: { createdAt: "desc" } },
+      notes: { orderBy: { createdAt: "desc" } },
+    },
   });
   if (!employee) return Response.json({ error: "Not found" }, { status: 404 });
   return Response.json(employee);

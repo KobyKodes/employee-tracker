@@ -17,6 +17,15 @@ model Employee {
   updatedAt   DateTime     @updatedAt
   attendance  Attendance[]
   warnings    Warning[]
+  notes       Note[]
+}
+
+model Note {
+  id          String   @id @default(cuid())
+  employeeId  String
+  content     String
+  createdAt   DateTime @default(now())
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
 
 model Attendance {

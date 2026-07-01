@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
-import { Employee, AttendanceStatus } from "@/types";
+import { Employee, AttendanceStatus, Note } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,6 +44,8 @@ import {
   Save,
   X,
   LogOut,
+  Download,
+  StickyNote,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -108,6 +110,14 @@ export default function EmployeePage({
   const [warningDialog, setWarningDialog] = useState(false);
   const [warningText, setWarningText] = useState("");
   const [deleteDialog, setDeleteDialog] = useState(false);
+
+  const [noteComposing, setNoteComposing] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
+
+  const [exportDialog, setExportDialog] = useState(false);
+  const [exportFrom, setExportFrom] = useState("");
+  const [exportTo, setExportTo] = useState("");
 
   useEffect(() => {
     fetchEmployee();
@@ -184,6 +194,65 @@ export default function EmployeePage({
     fetchEmployee();
   }
 
+  async function handleAddNote() {
+    if (!noteText.trim()) return;
+    setSavingNote(true);
+    await fetch(`/api/employees/${id}/notes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: noteText.trim() }),
+    });
+    setNoteText("");
+    setNoteComposing(false);
+    setSavingNote(false);
+    fetchEmployee();
+  }
+
+  async function handleDeleteNote(noteId: string) {
+    await fetch(`/api/employees/${id}/notes`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ noteId }),
+    });
+    fetchEmployee();
+  }
+
+  function downloadCSV(records: Employee["attendance"], label: string) {
+    if (!employee) return;
+    const rows: string[][] = [["Date", "Day", "Status", "Late Time"]];
+    const sorted = [...records].sort((a, b) => a.date.localeCompare(b.date));
+    for (const rec of sorted) {
+      const d = new Date(rec.date);
+      rows.push([format(d, "yyyy-MM-dd"), format(d, "EEEE"), rec.status, rec.lateTime ?? ""]);
+    }
+    const csv = rows.map(r => r.map(c => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${employee.name.toLowerCase().replace(/\s+/g, "-")}-attendance-${label}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleExportToday() {
+    if (!employee) return;
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    const records = employee.attendance.filter((a) => a.date.startsWith(todayStr));
+    downloadCSV(records, `today-${todayStr}`);
+    setExportDialog(false);
+  }
+
+  function handleExportRange() {
+    if (!employee || !exportFrom || !exportTo) return;
+    const records = employee.attendance.filter((a) => {
+      const d = a.date.slice(0, 10);
+      return d >= exportFrom && d <= exportTo;
+    });
+    downloadCSV(records, `${exportFrom}-to-${exportTo}`);
+    setExportDialog(false);
+  }
+
   function getAttendanceForDate(date: Date) {
     if (!employee) return null;
     return employee.attendance.find((a) =>
@@ -240,6 +309,13 @@ export default function EmployeePage({
             >
               <LogOut className="w-4 h-4" />
               Sign out
+            </button>
+            <button
+              onClick={() => setExportDialog(true)}
+              className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm px-3 py-2 rounded-lg hover:bg-white/[0.05] border border-white/10"
+            >
+              <Download className="w-4 h-4" />
+              Export CSV
             </button>
             {editing ? (
               <>
@@ -396,6 +472,91 @@ export default function EmployeePage({
               </div>
             );
           })}
+        </div>
+
+        {/* Notes */}
+        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2.5">
+              <StickyNote className="w-4 h-4 text-white/40" />
+              <h3 className="text-base font-semibold">Notes</h3>
+              {employee.notes.length > 0 && (
+                <span className="text-white/70 bg-white/[0.08] border border-white/20 rounded-full px-2 py-0.5 text-xs font-medium">
+                  {employee.notes.length}
+                </span>
+              )}
+            </div>
+            {!noteComposing && (
+              <button
+                onClick={() => setNoteComposing(true)}
+                className="flex items-center gap-1.5 text-xs text-white/70 hover:text-white transition-colors px-3 py-1.5 rounded-lg border border-white/20 hover:border-white/40 hover:bg-white/[0.05]"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add note
+              </button>
+            )}
+          </div>
+
+          {noteComposing && (
+            <div className="mb-5 rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
+              <textarea
+                autoFocus
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleAddNote();
+                  if (e.key === "Escape") { setNoteComposing(false); setNoteText(""); }
+                }}
+                placeholder="Write a note..."
+                rows={3}
+                className="w-full bg-transparent px-4 pt-3.5 pb-2 text-sm text-white placeholder:text-white/20 resize-none outline-none leading-relaxed"
+              />
+              <div className="flex items-center justify-between px-4 pb-3 pt-1 border-t border-white/[0.06]">
+                <span className="text-xs text-white/20">⌘↵ to save · Esc to cancel</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => { setNoteComposing(false); setNoteText(""); }}
+                    className="text-xs text-white/30 hover:text-white/60 transition-colors px-2.5 py-1 rounded-md"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAddNote}
+                    disabled={!noteText.trim() || savingNote}
+                    className="text-xs bg-white/10 hover:bg-white/15 text-white/80 disabled:opacity-30 transition-all px-3 py-1 rounded-md"
+                  >
+                    {savingNote ? "Saving..." : "Save"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {employee.notes.length === 0 && !noteComposing ? (
+            <p className="text-white/25 text-sm text-center py-6">No notes yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {employee.notes.map((note: Note) => (
+                <div
+                  key={note.id}
+                  className="group flex items-start gap-3 px-4 py-3.5 rounded-xl border border-indigo-400/60 bg-indigo-500/[0.08] hover:bg-indigo-500/[0.13] hover:border-indigo-400/80 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-white leading-relaxed whitespace-pre-wrap">{note.content}</p>
+                    <p className="text-xs text-white/60 mt-1.5">
+                      {format(new Date(note.createdAt), "MMM d, yyyy · h:mm a")}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteNote(note.id)}
+                    className="opacity-0 group-hover:opacity-100 text-white/20 hover:text-red-400 transition-all flex-shrink-0 mt-0.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Attendance Calendar */}
@@ -574,6 +735,68 @@ export default function EmployeePage({
           )}
         </div>
       </main>
+
+      {/* Export CSV Dialog */}
+      <Dialog open={exportDialog} onOpenChange={setExportDialog}>
+        <DialogContent className="bg-[#111118] border-white/10 text-white max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-white">Export Attendance CSV</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            <button
+              onClick={handleExportToday}
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.07] hover:border-white/20 transition-all text-left"
+            >
+              <div className="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center flex-shrink-0">
+                <Download className="w-3.5 h-3.5 text-indigo-400" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-white">Today's data</p>
+                <p className="text-xs text-white/40 mt-0.5">{format(new Date(), "MMMM d, yyyy")}</p>
+              </div>
+            </button>
+
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center flex-shrink-0">
+                  <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-white">Date range</p>
+                  <p className="text-xs text-white/40">Select a start and end date</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-white/50 text-xs">From</Label>
+                  <Input
+                    type="date"
+                    value={exportFrom}
+                    onChange={(e) => setExportFrom(e.target.value)}
+                    className="bg-white/5 border-white/10 text-white focus:border-indigo-500/50 h-9 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-white/50 text-xs">To</Label>
+                  <Input
+                    type="date"
+                    value={exportTo}
+                    onChange={(e) => setExportTo(e.target.value)}
+                    className="bg-white/5 border-white/10 text-white focus:border-indigo-500/50 h-9 text-sm"
+                  />
+                </div>
+              </div>
+              <Button
+                onClick={handleExportRange}
+                disabled={!exportFrom || !exportTo || exportFrom > exportTo}
+                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white border-0 disabled:opacity-40"
+              >
+                Export Range
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Attendance Dialog */}
       <Dialog
