@@ -10,7 +10,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
@@ -29,6 +28,9 @@ import {
   LogOut,
   Download,
   Calendar,
+  Timer,
+  Trash2,
+  MoreVertical,
 } from "lucide-react";
 import { format, isSameDay, subDays, isAfter, isBefore } from "date-fns";
 import { signOut } from "next-auth/react";
@@ -46,7 +48,7 @@ function getCycleStats(emp: Employee) {
       (isBefore(d, TODAY) || isSameDay(d, TODAY))
     );
   });
-  const attended = inCycle.filter((a) => a.status === "ATTENDED").length;
+  const attended = inCycle.filter((a) => a.status === "ATTENDED" || a.status === "LATE").length;
   const noShows = inCycle.filter((a) => a.status === "NO_SHOW").length;
   return { attended, noShows };
 }
@@ -100,9 +102,21 @@ export default function HomePage() {
   const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
   const keyHandlerRef = useRef<(e: KeyboardEvent) => void>(() => {});
 
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
   const [exportDialog, setExportDialog] = useState(false);
   const [exportFrom, setExportFrom] = useState("");
   const [exportTo, setExportTo] = useState("");
+
+  const [overtimeDialog, setOvertimeDialog] = useState(false);
+  const [overtimeMode, setOvertimeMode] = useState<"log" | "remove">("log");
+  const [overtimeHours, setOvertimeHours] = useState("");
+  const [overtimeDate, setOvertimeDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [overtimeNote, setOvertimeNote] = useState("");
+  const [overtimeTarget, setOvertimeTarget] = useState<"all" | string[]>("all");
+  const [savingOvertime, setSavingOvertime] = useState(false);
+  const [removingIds, setRemovingIds] = useState<string[]>([]);
 
   useEffect(() => { fetchEmployees(); }, []);
 
@@ -121,6 +135,16 @@ export default function HomePage() {
     const handler = (e: KeyboardEvent) => keyHandlerRef.current(e);
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   async function fetchEmployees() {
@@ -205,6 +229,42 @@ export default function HomePage() {
     setExportDialog(false);
   }
 
+  async function handleLogOvertime() {
+    if (!overtimeHours || !overtimeDate) return;
+    setSavingOvertime(true);
+    await fetch("/api/overtime/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        employeeIds: overtimeTarget,
+        hours: Number(overtimeHours),
+        date: overtimeDate,
+        note: overtimeNote,
+      }),
+    });
+    setOvertimeHours("");
+    setOvertimeNote("");
+    setOvertimeDate(format(new Date(), "yyyy-MM-dd"));
+    setOvertimeTarget("all");
+    setSavingOvertime(false);
+    setOvertimeDialog(false);
+    fetchEmployees();
+  }
+
+  async function handleRemoveOvertime() {
+    if (!removingIds.length) return;
+    setSavingOvertime(true);
+    await fetch("/api/overtime/bulk", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ employeeIds: removingIds }),
+    });
+    setRemovingIds([]);
+    setSavingOvertime(false);
+    setOvertimeDialog(false);
+    fetchEmployees();
+  }
+
   const filtered = employees.filter(
     (e) =>
       e.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -262,64 +322,48 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-            <Dialog open={addOpen} onOpenChange={setAddOpen}>
-              <DialogTrigger
-                render={
-                  <Button className="bg-indigo-600 hover:bg-indigo-500 text-white border-0 gap-2" />
-                }
-              >
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">Add Employee</span>
-              </DialogTrigger>
-            <DialogContent className="bg-[#111118] border-white/10 text-white">
-              <DialogHeader>
-                <DialogTitle className="text-white">New Employee</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleAddEmployee} className="space-y-4 mt-2">
-                {[
-                  { label: "Full Name", key: "name", type: "text", placeholder: "John Smith" },
-                  { label: "Role", key: "role", type: "text", placeholder: "Software Engineer" },
-                  { label: "Age", key: "age", type: "number", placeholder: "28" },
-                  { label: "Nationality", key: "nationality", type: "text", placeholder: "American" },
-                  { label: "Phone Number", key: "phone", type: "tel", placeholder: "+1 555 000 0000" },
-                ].map(({ label, key, type, placeholder }) => (
-                  <div key={key} className="space-y-1.5">
-                    <Label className="text-white text-sm">{label}</Label>
-                    <Input
-                      type={type}
-                      placeholder={placeholder}
-                      value={form[key as keyof typeof form]}
-                      onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                      required
-                      className="bg-white/5 border-white/10 text-white placeholder:text-white focus:border-indigo-500/50"
-                    />
-                  </div>
-                ))}
-                <Button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white border-0"
+          {/* Menu button */}
+          <div className="relative flex-shrink-0" ref={menuRef}>
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              className="w-9 h-9 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.07] hover:border-white/20 flex items-center justify-center text-white/60 hover:text-white transition-all"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+
+            {menuOpen && (
+              <div className="absolute right-0 top-11 w-52 rounded-xl border border-white/10 bg-[#111118] shadow-xl shadow-black/40 py-1.5 z-50">
+                <button
+                  onClick={() => { setAddOpen(true); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/[0.05] transition-colors text-left"
                 >
-                  {submitting ? "Adding..." : "Add Employee"}
-                </Button>
-              </form>
-            </DialogContent>
-            </Dialog>
-            <button
-              onClick={() => setExportDialog(true)}
-              className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm px-3 py-2 rounded-lg hover:bg-white/[0.05] border border-white/10"
-            >
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Export CSV</span>
-            </button>
-            <button
-              onClick={() => signOut({ callbackUrl: "/login" })}
-              className="flex items-center gap-2 text-white hover:text-white transition-colors text-sm px-3 py-2 rounded-lg hover:bg-white/[0.05]"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Sign out</span>
-            </button>
+                  <Plus className="w-4 h-4 text-indigo-400" />
+                  Add Employee
+                </button>
+                <button
+                  onClick={() => { setOvertimeMode("log"); setOvertimeDialog(true); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/[0.05] transition-colors text-left"
+                >
+                  <Timer className="w-4 h-4 text-indigo-400" />
+                  Overtime
+                </button>
+                <button
+                  onClick={() => { setExportDialog(true); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/[0.05] transition-colors text-left"
+                >
+                  <Download className="w-4 h-4 text-indigo-400" />
+                  Export CSV
+                </button>
+                <div className="border-t border-white/[0.07] my-1.5" />
+                <button
+                  onClick={() => signOut({ callbackUrl: "/login" })}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400/80 hover:text-red-400 hover:bg-red-500/[0.06] transition-colors text-left"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign out
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -455,6 +499,15 @@ export default function HomePage() {
                             {totalLate} late arrival{totalLate > 1 ? "s" : ""}
                           </span>
                         )}
+                        {(() => {
+                          const totalOT = emp.overtime.reduce((s, e) => s + e.hours, 0);
+                          return totalOT > 0 ? (
+                            <span className="hidden sm:flex items-center gap-1.5 text-indigo-300 text-xs">
+                              <Timer className="w-3 h-3" />
+                              {totalOT % 1 === 0 ? totalOT : totalOT.toFixed(1)}h overtime
+                            </span>
+                          ) : null;
+                        })()}
                       </div>
                     </div>
 
@@ -516,6 +569,204 @@ export default function HomePage() {
           </div>
         )}
       </main>
+
+      {/* Add Employee Dialog */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="bg-[#111118] border-white/10 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-white">New Employee</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddEmployee} className="space-y-4 mt-2">
+            {[
+              { label: "Full Name", key: "name", type: "text", placeholder: "John Smith" },
+              { label: "Role", key: "role", type: "text", placeholder: "Software Engineer" },
+              { label: "Age", key: "age", type: "number", placeholder: "28" },
+              { label: "Nationality", key: "nationality", type: "text", placeholder: "American" },
+              { label: "Phone Number", key: "phone", type: "tel", placeholder: "+1 555 000 0000" },
+            ].map(({ label, key, type, placeholder }) => (
+              <div key={key} className="space-y-1.5">
+                <Label className="text-white text-sm">{label}</Label>
+                <Input
+                  type={type}
+                  placeholder={placeholder}
+                  value={form[key as keyof typeof form]}
+                  onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                  required
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white focus:border-indigo-500/50"
+                />
+              </div>
+            ))}
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white border-0"
+            >
+              {submitting ? "Adding..." : "Add Employee"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Overtime Dialog */}
+      <Dialog open={overtimeDialog} onOpenChange={(open) => { setOvertimeDialog(open); if (!open) { setRemovingIds([]); } }}>
+        <DialogContent className="bg-[#111118] border-white/10 text-white max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-white">Manage Overtime</DialogTitle>
+          </DialogHeader>
+
+          {/* Mode tabs */}
+          <div className="flex rounded-lg border border-white/10 p-1 gap-1 mt-1">
+            {(["log", "remove"] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setOvertimeMode(mode)}
+                className={`flex-1 text-xs py-1.5 rounded-md transition-all font-medium ${
+                  overtimeMode === mode
+                    ? "bg-indigo-600 text-white"
+                    : "text-white/40 hover:text-white"
+                }`}
+              >
+                {mode === "log" ? "Log Hours" : "Remove Overtime"}
+              </button>
+            ))}
+          </div>
+
+          {overtimeMode === "log" ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-white/50 text-xs">Hours</Label>
+                  <Input
+                    type="number"
+                    min="0.5"
+                    step="0.5"
+                    placeholder="e.g. 3"
+                    value={overtimeHours}
+                    onChange={(e) => setOvertimeHours(e.target.value)}
+                    className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-indigo-500/50 h-9 text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-white/50 text-xs">Date</Label>
+                  <Input
+                    type="date"
+                    value={overtimeDate}
+                    onChange={(e) => setOvertimeDate(e.target.value)}
+                    className="bg-white/5 border-white/10 text-white focus:border-indigo-500/50 h-9 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-white/50 text-xs">Note <span className="text-white/25">(optional)</span></Label>
+                <Input
+                  type="text"
+                  placeholder="e.g. Project deadline"
+                  value={overtimeNote}
+                  onChange={(e) => setOvertimeNote(e.target.value)}
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-indigo-500/50 h-9 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-white/50 text-xs">Apply to</Label>
+                <div className="flex rounded-lg border border-white/10 p-1 gap-1">
+                  <button
+                    onClick={() => setOvertimeTarget("all")}
+                    className={`flex-1 text-xs py-1.5 rounded-md transition-all ${overtimeTarget === "all" ? "bg-white/10 text-white" : "text-white/40 hover:text-white"}`}
+                  >
+                    All employees
+                  </button>
+                  <button
+                    onClick={() => setOvertimeTarget([])}
+                    className={`flex-1 text-xs py-1.5 rounded-md transition-all ${Array.isArray(overtimeTarget) ? "bg-white/10 text-white" : "text-white/40 hover:text-white"}`}
+                  >
+                    Select employees
+                  </button>
+                </div>
+              </div>
+              {Array.isArray(overtimeTarget) && (
+                <div className="max-h-36 overflow-y-auto space-y-1 rounded-lg border border-white/10 p-2">
+                  {employees.map((emp) => {
+                    const selected = overtimeTarget.includes(emp.id);
+                    return (
+                      <button
+                        key={emp.id}
+                        onClick={() => setOvertimeTarget(
+                          selected ? overtimeTarget.filter((i) => i !== emp.id) : [...overtimeTarget, emp.id]
+                        )}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-xs transition-all ${selected ? "bg-indigo-500/15 text-white border border-indigo-500/30" : "text-white/50 hover:text-white hover:bg-white/[0.04]"}`}
+                      >
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selected ? "bg-indigo-500 border-indigo-400" : "border-white/20"}`}>
+                          {selected && <CheckCircle2 className="w-3 h-3 text-white" />}
+                        </div>
+                        {emp.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <Button
+                onClick={handleLogOvertime}
+                disabled={savingOvertime || !overtimeHours || !overtimeDate || (Array.isArray(overtimeTarget) && overtimeTarget.length === 0)}
+                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white border-0 disabled:opacity-40"
+              >
+                {savingOvertime ? "Saving..." : "Log Overtime"}
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {(() => {
+                const withOT = employees.filter((e) => e.overtime.length > 0);
+                const allSelected = withOT.length > 0 && withOT.every((e) => removingIds.includes(e.id));
+                return withOT.length > 0 ? (
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-white/40">Select employees to clear their overtime.</p>
+                    <button
+                      onClick={() => setRemovingIds(allSelected ? [] : withOT.map((e) => e.id))}
+                      className="text-xs text-white/60 hover:text-white transition-colors"
+                    >
+                      {allSelected ? "Deselect all" : "Select all"}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-white/40">Select employees to clear their overtime.</p>
+                );
+              })()}
+              <div className="max-h-52 overflow-y-auto space-y-1 rounded-lg border border-white/10 p-2">
+                {employees.filter((e) => e.overtime.length > 0).length === 0 ? (
+                  <p className="text-xs text-white/25 text-center py-4">No employees have overtime.</p>
+                ) : (
+                  employees.filter((e) => e.overtime.length > 0).map((emp) => {
+                    const totalOT = emp.overtime.reduce((s, e) => s + e.hours, 0);
+                    const selected = removingIds.includes(emp.id);
+                    return (
+                      <button
+                        key={emp.id}
+                        onClick={() => setRemovingIds(
+                          selected ? removingIds.filter((i) => i !== emp.id) : [...removingIds, emp.id]
+                        )}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-xs transition-all ${selected ? "bg-red-500/10 text-white border border-red-500/30" : "text-white/50 hover:text-white hover:bg-white/[0.04]"}`}
+                      >
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selected ? "bg-red-500 border-red-400" : "border-white/20"}`}>
+                          {selected && <Trash2 className="w-2.5 h-2.5 text-white" />}
+                        </div>
+                        <span className="flex-1 truncate">{emp.name}</span>
+                        <span className="text-indigo-300 font-medium">{totalOT % 1 === 0 ? totalOT : totalOT.toFixed(1)}h</span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+              <Button
+                onClick={handleRemoveOvertime}
+                disabled={savingOvertime || removingIds.length === 0}
+                className="w-full bg-red-600 hover:bg-red-500 text-white border-0 disabled:opacity-40"
+              >
+                {savingOvertime ? "Removing..." : `Remove Overtime${removingIds.length > 0 ? ` (${removingIds.length})` : ""}`}
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Export CSV Dialog */}
       <Dialog open={exportDialog} onOpenChange={setExportDialog}>

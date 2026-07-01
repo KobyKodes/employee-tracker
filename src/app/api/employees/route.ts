@@ -6,6 +6,7 @@ export async function GET() {
     include: {
       attendance: true,
       warnings: true,
+      overtime: true,
     },
     orderBy: { createdAt: "desc" },
   });

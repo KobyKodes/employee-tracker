@@ -12,6 +12,7 @@ export async function GET(
       attendance: true,
       warnings: { orderBy: { createdAt: "desc" } },
       notes: { orderBy: { createdAt: "desc" } },
+      overtime: { orderBy: { date: "desc" } },
     },
   });
   if (!employee) return Response.json({ error: "Not found" }, { status: 404 });

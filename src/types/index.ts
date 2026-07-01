@@ -22,6 +22,15 @@ export interface Note {
   createdAt: string;
 }
 
+export interface OvertimeEntry {
+  id: string;
+  employeeId: string;
+  hours: number;
+  date: string;
+  note?: string | null;
+  createdAt: string;
+}
+
 export interface Employee {
   id: string;
   name: string;
@@ -33,4 +42,5 @@ export interface Employee {
   attendance: AttendanceRecord[];
   warnings: Warning[];
   notes: Note[];
+  overtime: OvertimeEntry[];
 }

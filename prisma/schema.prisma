@@ -18,6 +18,17 @@ model Employee {
   attendance  Attendance[]
   warnings    Warning[]
   notes       Note[]
+  overtime    Overtime[]
+}
+
+model Overtime {
+  id          String   @id @default(cuid())
+  employeeId  String
+  hours       Float
+  date        String
+  note        String?
+  createdAt   DateTime @default(now())
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
 
 model Note {

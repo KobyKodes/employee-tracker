@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
-import { Employee, AttendanceStatus, Note } from "@/types";
+import { Employee, AttendanceStatus, Note, OvertimeEntry } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,6 +46,7 @@ import {
   LogOut,
   Download,
   StickyNote,
+  Timer,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -114,6 +115,12 @@ export default function EmployeePage({
   const [noteComposing, setNoteComposing] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+
+  const [overtimeComposing, setOvertimeComposing] = useState(false);
+  const [overtimeHours, setOvertimeHours] = useState("");
+  const [overtimeDate, setOvertimeDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [overtimeNote, setOvertimeNote] = useState("");
+  const [savingOvertime, setSavingOvertime] = useState(false);
 
   const [exportDialog, setExportDialog] = useState(false);
   const [exportFrom, setExportFrom] = useState("");
@@ -217,6 +224,40 @@ export default function EmployeePage({
     fetchEmployee();
   }
 
+  async function handleAddOvertime() {
+    if (!overtimeHours || !overtimeDate) return;
+    setSavingOvertime(true);
+    await fetch(`/api/employees/${id}/overtime`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hours: Number(overtimeHours), date: overtimeDate, note: overtimeNote }),
+    });
+    setOvertimeHours("");
+    setOvertimeNote("");
+    setOvertimeDate(format(new Date(), "yyyy-MM-dd"));
+    setOvertimeComposing(false);
+    setSavingOvertime(false);
+    fetchEmployee();
+  }
+
+  async function handleDeleteOvertime(overtimeId: string) {
+    await fetch(`/api/employees/${id}/overtime`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ overtimeId }),
+    });
+    fetchEmployee();
+  }
+
+  async function handleClearAllOvertime() {
+    await fetch(`/api/employees/${id}/overtime`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clearAll: true }),
+    });
+    fetchEmployee();
+  }
+
   function downloadCSV(records: Employee["attendance"], label: string) {
     if (!employee) return;
     const rows: string[][] = [["Date", "Day", "Status", "Late Time"]];
@@ -294,28 +335,28 @@ export default function EmployeePage({
     <div className="min-h-screen bg-[#0a0a0f] text-white">
       {/* Header */}
       <header className="border-b border-white/10 bg-[#0a0a0f]/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-2">
           <button
             onClick={() => router.push("/")}
-            className="flex items-center gap-2 text-white/50 hover:text-white transition-colors text-sm"
+            className="flex items-center gap-2 text-white/50 hover:text-white transition-colors text-sm flex-shrink-0"
           >
             <ArrowLeft className="w-4 h-4" />
-            All Employees
+            <span className="hidden sm:inline">All Employees</span>
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             <button
               onClick={() => signOut({ callbackUrl: "/login" })}
               className="flex items-center gap-2 text-white hover:text-white/70 transition-colors text-sm px-3 py-2 rounded-lg hover:bg-white/[0.05]"
             >
               <LogOut className="w-4 h-4" />
-              Sign out
+              <span className="hidden sm:inline">Sign out</span>
             </button>
             <button
               onClick={() => setExportDialog(true)}
               className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm px-3 py-2 rounded-lg hover:bg-white/[0.05] border border-white/10"
             >
               <Download className="w-4 h-4" />
-              Export CSV
+              <span className="hidden sm:inline">Export CSV</span>
             </button>
             {editing ? (
               <>
@@ -325,7 +366,8 @@ export default function EmployeePage({
                   size="sm"
                   className="text-white/50 hover:text-white gap-1.5"
                 >
-                  <X className="w-4 h-4" /> Cancel
+                  <X className="w-4 h-4" />
+                  <span className="hidden sm:inline">Cancel</span>
                 </Button>
                 <Button
                   onClick={handleSaveEdit}
@@ -334,7 +376,7 @@ export default function EmployeePage({
                   className="bg-indigo-600 hover:bg-indigo-500 text-white border-0 gap-1.5"
                 >
                   <Save className="w-4 h-4" />
-                  {saving ? "Saving..." : "Save Changes"}
+                  <span className="hidden sm:inline">{saving ? "Saving..." : "Save Changes"}</span>
                 </Button>
               </>
             ) : (
@@ -345,7 +387,8 @@ export default function EmployeePage({
                   size="sm"
                   className="text-white/50 hover:text-white gap-1.5 border border-white/10"
                 >
-                  <Edit2 className="w-4 h-4" /> Edit
+                  <Edit2 className="w-4 h-4" />
+                  <span className="hidden sm:inline">Edit</span>
                 </Button>
                 <Dialog open={deleteDialog} onOpenChange={setDeleteDialog}>
                   <DialogTrigger
@@ -357,7 +400,8 @@ export default function EmployeePage({
                       />
                     }
                   >
-                    <Trash2 className="w-4 h-4" /> Delete
+                    <Trash2 className="w-4 h-4" />
+                    <span className="hidden sm:inline">Delete</span>
                   </DialogTrigger>
                   <DialogContent className="bg-[#111118] border-white/10 text-white">
                     <DialogHeader>
@@ -659,6 +703,131 @@ export default function EmployeePage({
             <span className="text-xs text-white ml-auto">Click a day to log attendance</span>
           </div>
         </div>
+
+        {/* Overtime */}
+        {(() => {
+          const totalHours = employee.overtime.reduce((s, e) => s + e.hours, 0);
+          return (
+            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] p-6">
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2.5">
+                  <Timer className="w-4 h-4 text-white/40" />
+                  <h3 className="text-base font-semibold">Overtime</h3>
+                  {totalHours > 0 && (
+                    <span className="text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 rounded-full px-2 py-0.5 text-xs font-medium">
+                      {totalHours % 1 === 0 ? totalHours : totalHours.toFixed(1)}h total
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {employee.overtime.length > 0 && !overtimeComposing && (
+                    <button
+                      onClick={handleClearAllOvertime}
+                      className="text-xs text-red-400/60 hover:text-red-400 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-red-500/[0.08]"
+                    >
+                      Clear all
+                    </button>
+                  )}
+                  {!overtimeComposing && (
+                    <button
+                      onClick={() => setOvertimeComposing(true)}
+                      className="flex items-center gap-1.5 text-xs text-white/70 hover:text-white transition-colors px-3 py-1.5 rounded-lg border border-white/20 hover:border-white/40 hover:bg-white/[0.05]"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Log hours
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {overtimeComposing && (
+                <div className="mb-5 rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-white/50 text-xs">Hours</Label>
+                      <Input
+                        type="number"
+                        min="0.5"
+                        step="0.5"
+                        placeholder="e.g. 2.5"
+                        value={overtimeHours}
+                        onChange={(e) => setOvertimeHours(e.target.value)}
+                        className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-indigo-500/50 h-9 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-white/50 text-xs">Date</Label>
+                      <Input
+                        type="date"
+                        value={overtimeDate}
+                        onChange={(e) => setOvertimeDate(e.target.value)}
+                        className="bg-white/5 border-white/10 text-white focus:border-indigo-500/50 h-9 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-white/50 text-xs">Note <span className="text-white/25">(optional)</span></Label>
+                    <Input
+                      type="text"
+                      placeholder="e.g. Project deadline crunch"
+                      value={overtimeNote}
+                      onChange={(e) => setOvertimeNote(e.target.value)}
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-indigo-500/50 h-9 text-sm"
+                    />
+                  </div>
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      onClick={() => { setOvertimeComposing(false); setOvertimeHours(""); setOvertimeNote(""); }}
+                      className="text-xs text-white/30 hover:text-white/60 transition-colors px-2.5 py-1 rounded-md"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleAddOvertime}
+                      disabled={!overtimeHours || !overtimeDate || savingOvertime}
+                      className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40 transition-all px-3 py-1.5 rounded-md"
+                    >
+                      {savingOvertime ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {employee.overtime.length === 0 && !overtimeComposing ? (
+                <p className="text-white/25 text-sm text-center py-6">No overtime logged.</p>
+              ) : (
+                <div className="space-y-2">
+                  {employee.overtime.map((entry: OvertimeEntry) => (
+                    <div
+                      key={entry.id}
+                      className="group flex items-center gap-3 px-4 py-3 rounded-xl border border-indigo-400/20 bg-indigo-500/[0.06] hover:bg-indigo-500/[0.10] transition-colors"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center flex-shrink-0">
+                        <span className="text-indigo-300 font-bold text-sm">
+                          {entry.hours % 1 === 0 ? entry.hours : entry.hours.toFixed(1)}h
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        {entry.note && (
+                          <p className="text-sm text-white leading-snug truncate">{entry.note}</p>
+                        )}
+                        <p className="text-xs text-white/50">
+                          {format(new Date(entry.date), "MMM d, yyyy")}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteOvertime(entry.id)}
+                        className="opacity-0 group-hover:opacity-100 text-white/20 hover:text-red-400 transition-all flex-shrink-0"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Warnings */}
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] p-6">
