@@ -263,31 +263,15 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => signOut({ callbackUrl: "/login" })}
-              className="flex items-center gap-2 text-white hover:text-white transition-colors text-sm px-3 py-2 rounded-lg hover:bg-white/[0.05]"
-            >
-              <LogOut className="w-4 h-4" />
-              Sign out
-            </button>
-            <button
-              onClick={() => setExportDialog(true)}
-              className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm px-3 py-2 rounded-lg hover:bg-white/[0.05] border border-white/10"
-            >
-              <Download className="w-4 h-4" />
-              Export CSV
-            </button>
-          </div>
-
-          <Dialog open={addOpen} onOpenChange={setAddOpen}>
-            <DialogTrigger
-              render={
-                <Button className="bg-indigo-600 hover:bg-indigo-500 text-white border-0 gap-2" />
-              }
-            >
-              <Plus className="w-4 h-4" />
-              Add Employee
-            </DialogTrigger>
+            <Dialog open={addOpen} onOpenChange={setAddOpen}>
+              <DialogTrigger
+                render={
+                  <Button className="bg-indigo-600 hover:bg-indigo-500 text-white border-0 gap-2" />
+                }
+              >
+                <Plus className="w-4 h-4" />
+                Add Employee
+              </DialogTrigger>
             <DialogContent className="bg-[#111118] border-white/10 text-white">
               <DialogHeader>
                 <DialogTitle className="text-white">New Employee</DialogTitle>
@@ -321,7 +305,22 @@ export default function HomePage() {
                 </Button>
               </form>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+            <button
+              onClick={() => setExportDialog(true)}
+              className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm px-3 py-2 rounded-lg hover:bg-white/[0.05] border border-white/10"
+            >
+              <Download className="w-4 h-4" />
+              Export CSV
+            </button>
+            <button
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="flex items-center gap-2 text-white hover:text-white transition-colors text-sm px-3 py-2 rounded-lg hover:bg-white/[0.05]"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign out
+            </button>
+          </div>
         </div>
       </header>
 
