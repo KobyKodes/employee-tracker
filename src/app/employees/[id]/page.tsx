@@ -258,14 +258,36 @@ export default function EmployeePage({
     fetchEmployee();
   }
 
-  function downloadCSV(records: Employee["attendance"], label: string) {
+  function downloadCSV(dateFilter: (d: string) => boolean, label: string) {
     if (!employee) return;
-    const rows: string[][] = [["Date", "Day", "Status", "Late Time"]];
-    const sorted = [...records].sort((a, b) => a.date.localeCompare(b.date));
-    for (const rec of sorted) {
-      const d = new Date(rec.date);
-      rows.push([format(d, "yyyy-MM-dd"), format(d, "EEEE"), rec.status, rec.lateTime ?? ""]);
+
+    const attendance = employee.attendance.filter((a) => dateFilter(a.date.slice(0, 10)));
+    const overtime = employee.overtime.filter((o) => dateFilter(o.date));
+
+    const attendanceByDate = new Map(attendance.map((a) => [a.date.slice(0, 10), a]));
+    const overtimeByDate = new Map<string, Employee["overtime"]>();
+    for (const o of overtime) {
+      if (!overtimeByDate.has(o.date)) overtimeByDate.set(o.date, []);
+      overtimeByDate.get(o.date)!.push(o);
     }
+
+    const allDates = new Set([...attendanceByDate.keys(), ...overtimeByDate.keys()]);
+    const sorted = [...allDates].sort();
+
+    const rows: string[][] = [["Date", "Day", "Status", "Late Time", "Overtime Hours", "Overtime Note"]];
+    for (const dateStr of sorted) {
+      const att = attendanceByDate.get(dateStr);
+      const otEntries = overtimeByDate.get(dateStr) ?? [];
+      const d = new Date(dateStr);
+      if (otEntries.length === 0) {
+        rows.push([dateStr, format(d, "EEEE"), att?.status ?? "", att?.lateTime ?? "", "", ""]);
+      } else {
+        for (const ot of otEntries) {
+          rows.push([dateStr, format(d, "EEEE"), att?.status ?? "", att?.lateTime ?? "", String(ot.hours), ot.note ?? ""]);
+        }
+      }
+    }
+
     const csv = rows.map(r => r.map(c => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -279,18 +301,13 @@ export default function EmployeePage({
   function handleExportToday() {
     if (!employee) return;
     const todayStr = format(new Date(), "yyyy-MM-dd");
-    const records = employee.attendance.filter((a) => a.date.startsWith(todayStr));
-    downloadCSV(records, `today-${todayStr}`);
+    downloadCSV((d) => d === todayStr, `today-${todayStr}`);
     setExportDialog(false);
   }
 
   function handleExportRange() {
     if (!employee || !exportFrom || !exportTo) return;
-    const records = employee.attendance.filter((a) => {
-      const d = a.date.slice(0, 10);
-      return d >= exportFrom && d <= exportTo;
-    });
-    downloadCSV(records, `${exportFrom}-to-${exportTo}`);
+    downloadCSV((d) => d >= exportFrom && d <= exportTo, `${exportFrom}-to-${exportTo}`);
     setExportDialog(false);
   }
 
