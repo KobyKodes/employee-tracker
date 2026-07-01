@@ -251,18 +251,18 @@ export default function HomePage() {
     <div className="min-h-screen bg-[#0a0a0f] text-white">
       {/* Header */}
       <header className="border-b border-white/10 bg-[#0a0a0f]/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center flex-shrink-0">
               <Users className="w-4 h-4 text-indigo-400" />
             </div>
-            <div>
-              <h1 className="text-lg font-semibold tracking-tight">Employee Tracker</h1>
-              <p className="text-xs text-white">Team management dashboard</p>
+            <div className="min-w-0">
+              <h1 className="text-lg font-semibold tracking-tight truncate">Employee Tracker</h1>
+              <p className="text-xs text-white hidden sm:block">Team management dashboard</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             <Dialog open={addOpen} onOpenChange={setAddOpen}>
               <DialogTrigger
                 render={
@@ -270,7 +270,7 @@ export default function HomePage() {
                 }
               >
                 <Plus className="w-4 h-4" />
-                Add Employee
+                <span className="hidden sm:inline">Add Employee</span>
               </DialogTrigger>
             <DialogContent className="bg-[#111118] border-white/10 text-white">
               <DialogHeader>
@@ -311,14 +311,14 @@ export default function HomePage() {
               className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm px-3 py-2 rounded-lg hover:bg-white/[0.05] border border-white/10"
             >
               <Download className="w-4 h-4" />
-              Export CSV
+              <span className="hidden sm:inline">Export CSV</span>
             </button>
             <button
               onClick={() => signOut({ callbackUrl: "/login" })}
               className="flex items-center gap-2 text-white hover:text-white transition-colors text-sm px-3 py-2 rounded-lg hover:bg-white/[0.05]"
             >
               <LogOut className="w-4 h-4" />
-              Sign out
+              <span className="hidden sm:inline">Sign out</span>
             </button>
           </div>
         </div>
