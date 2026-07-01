@@ -196,16 +196,35 @@ export default function HomePage() {
   }
 
   function downloadSummaryCSV(filterFn: (dateStr: string) => boolean, label: string) {
-    const rows: string[][] = [["Name", "Role", "Age", "Nationality", "Phone", "Days Attended", "Days Late", "Days No Show", "Total Warnings"]];
     const sorted = [...employees].sort((a, b) => a.name.localeCompare(b.name));
+
+    const overtimeDatesSet = new Set<string>();
+    for (const emp of sorted) {
+      for (const o of emp.overtime) {
+        if (filterFn(o.date)) overtimeDatesSet.add(o.date);
+      }
+    }
+    const overtimeDates = [...overtimeDatesSet].sort();
+
+    const rows: string[][] = [[
+      "Name", "Role", "Age", "Nationality", "Phone",
+      "Days Attended", "Days Late", "Days No Show", "Total Warnings",
+      ...overtimeDates.map(d => `Overtime ${d}`),
+    ]];
+
     for (const emp of sorted) {
       const inRange = emp.attendance.filter(a => filterFn(a.date.slice(0, 10)));
       const attended = inRange.filter(a => a.status === "ATTENDED").length;
       const late = inRange.filter(a => a.status === "LATE").length;
       const noShow = inRange.filter(a => a.status === "NO_SHOW").length;
+      const empOTByDate = new Map<string, number>();
+      for (const o of emp.overtime) {
+        if (filterFn(o.date)) empOTByDate.set(o.date, (empOTByDate.get(o.date) ?? 0) + o.hours);
+      }
       rows.push([
         emp.name, emp.role, String(emp.age), emp.nationality, emp.phone,
         String(attended), String(late), String(noShow), String(emp.warnings.length),
+        ...overtimeDates.map(d => { const h = empOTByDate.get(d); return h !== undefined ? String(h) : ""; }),
       ]);
     }
     const csv = rows.map(r => r.map(c => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
